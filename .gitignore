@@ -36,9 +36,12 @@
 *.x86_64
 *.hex
 
+<<<<<<< HEAD
 #VS
 *.vs/
 
+=======
+>>>>>>> e5f307950f6ef752e5387c0d9f0ea77ca8316637
 # Debug files
 *.dSYM/
 *.su
