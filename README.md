@@ -1,7 +1,7 @@
 # EnumMitigations
 Reports on Driver, LSASS and other security services mitigations.
 
-#### Checks
+### Checks
 - Driver Security Mitigations
   - Secure boot
   - Test Signing mode
@@ -17,7 +17,7 @@ Reports on Driver, LSASS and other security services mitigations.
   - Kernel-mode Hardware-enforced Stack Protection
   - Hypervisor-Enforced Paging Translation
 
-#### Output
+### Output
 In my VM with nothing enabled:
 
 ```
