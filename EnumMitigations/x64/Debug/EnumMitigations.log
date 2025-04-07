@@ -1,0 +1,18 @@
+﻿  EnumMitigations.c
+  helpers.c
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(11,7): warning C4047: 'initializing': 'LONG' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(12,8): warning C4047: 'initializing': 'DWORD' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(14,8): warning C4047: 'initializing': 'DWORD' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(73,7): warning C4047: 'initializing': 'LONG' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(74,8): warning C4047: 'initializing': 'DWORD' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(76,8): warning C4047: 'initializing': 'DWORD' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(132,11): warning C4047: 'initializing': 'NTSTATUS' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(133,9): warning C4047: 'initializing': 'ULONG' differs in levels of indirection from 'void *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(278,3): warning C4133: 'function': incompatible types - from 'IWbemServices *' to 'IUnknown *'
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\EnumMitigations.c(192,14): warning C4047: 'initializing': 'HRESULT' differs in levels of indirection from 'void *'
+  Generating Code...
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\helpers.c(24,1): warning C4716: 'errorNT': must return a value
+C:\Users\user\source\repos\EnumMitigations\EnumMitigations\helpers.c(19,1): warning C4716: 'errorWin32': must return a value
+  EnumMitigations.vcxproj -> C:\Users\user\source\repos\EnumMitigations\x64\Debug\EnumMitigations.exe
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
