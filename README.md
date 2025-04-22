@@ -1,5 +1,5 @@
 # EnumMitigations
-Reports on Driver, LSASS and other security services mitigations. I got inspired to build upon the EnumMitigations tool provided in the Evasion Lab (CETP) from [Altered Security](https://www.alteredsecurity.com/evasionlab).
+Reports on Driver, LSASS and other security services mitigations. I got inspired to build upon the EnumMitigations tool provided in the Evasion Lab (CETP) from [Altered Security](https://www.alteredsecurity.com/evasionlab), taught by [Saad Ahla](https://www.linkedin.com/in/saad-ahla/).
 
 ### Checks
 - Driver Security Mitigations
