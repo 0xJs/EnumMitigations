@@ -125,7 +125,7 @@ _cleanUp:
 
 }
 
-BOOL CheckTestSigningMode(IN SystemSecuritySettings* pSettings) {
+BOOL CheckTestSigningModeAndDSE(IN SystemSecuritySettings* pSettings) {
 	
 	BOOL		bSTATE		= TRUE;
 	HMODULE		hNTDLL		= NULL; // Stores handle to ntdll.dll
@@ -169,11 +169,20 @@ BOOL CheckTestSigningMode(IN SystemSecuritySettings* pSettings) {
 	info_t("NtQuerySystemInformation - Received %lu bytes of SYSTEM_CODEINTEGRITY_INFORMATION", uReturn);
 	info_t("NtQuerySystemInformation - SCI CodeIntegrityOptions: 0x%X", sci.CodeIntegrityOptions);
 
-	if (sci.CodeIntegrityOptions & 0x02) {
-		pSettings->bTestSigningModeEnable = TRUE;
+	// Check for Driver Signature Enforcement (DSE) being enabled
+	if (sci.CodeIntegrityOptions & 0x01) { // CODEINTEGRITY_OPTION_ENABLED
+		pSettings->bDSEEnabled = TRUE;
 	}
 	else {
-		pSettings->bTestSigningModeEnable = FALSE;
+		pSettings->bDSEEnabled = FALSE;
+	}
+
+	// Check for Test-Signing mode
+	if (sci.CodeIntegrityOptions & 0x02) { // CODEINTEGRITY_OPTION_TESTSIGN
+		pSettings->bTestSigningModeEnabled = TRUE;
+	}
+	else {
+		pSettings->bTestSigningModeEnabled = FALSE;
 	}
 
 _cleanUp:
@@ -553,9 +562,9 @@ BOOL GatherSecuritySettings(IN SystemSecuritySettings* pSettings) {
 		error("CheckSecureBoot - Failed")
 	}
 
-	info("CheckTestSigningMode - Checking Signing mode");
-	if (!CheckTestSigningMode(pSettings)) {
-		error("CheckTestSigningMode - Failed")
+	info("CheckTestSigningModeAndDSE - Checking Signing mode");
+	if (!CheckTestSigningModeAndDSE(pSettings)) {
+		error("CheckTestSigningModeAndDSE - Failed")
 	}
 
 	info("CheckSecuritySettingsWMI - Checking security configurations via WMI");
@@ -581,11 +590,28 @@ BOOL ReportSecurityMitigationsDriver(SystemSecuritySettings* pSettings) {
 		info_t("[VULN] UEFI Secure Boot: Disabled");
 	}
 
-	if (pSettings->bTestSigningModeEnable) {
+	if (pSettings->bDSEEnabled) {
+		info_t("[OK] Driver Signature Enforcement (DSE): Enabled");
+	}
+	else {
+		info_t("[VULN] Driver Signature Enforcement (DSE): Disabled");
+	}
+
+	if (pSettings->bTestSigningModeEnabled) {
 		info_t("[VULN] Test Signing Mode: Enabled");
 	}
 	else {
 		info_t("[OK] Test Signing Mode: Disabled");
+	}
+
+	if (pSettings->bVirtualizationBasedSecurityEnabled) {
+		info_t("[OK] Virtualization-based Security (VBS): On");
+	}
+	else if (pSettings->bVirtualizationBasedSecurityAuditEnabled) {
+		info_t("[ ] Virtualization-based Security (VBS): Audit");
+	}
+	else {
+		info_t("[VULN] Virtualization-based Security (VBS): Disabled");
 	}
 
 	if (pSettings->bHVCIConfigured) {
@@ -600,16 +626,6 @@ BOOL ReportSecurityMitigationsDriver(SystemSecuritySettings* pSettings) {
 	}
 	else {
 		info_t("[VULN] Hypervisor-protected Code Integrity (HVCI): Not running");
-	}
-
-	if (pSettings->bVirtualizationBasedSecurityEnabled) {
-		info_t("[OK] Virtualization-based Security (VBS): On");
-	}
-	else if (pSettings->bVirtualizationBasedSecurityAuditEnabled) {
-		info_t("[ ] Virtualization-based Security (VBS): Audit");
-	}
-	else {
-		info_t("[VULN] Virtualization-based Security (VBS): Disabled");
 	}
 
 	if (pSettings->bWDACEnabledEnforced) {

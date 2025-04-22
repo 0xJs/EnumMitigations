@@ -21,8 +21,11 @@ typedef struct _SystemSecuritySettings {
 	// Secure boot
 	BOOL bSecureBootEnabled;
 
+	// DSE
+	BOOL bDSEEnabled;
+
 	// Test signing mode
-	BOOL bTestSigningModeEnable;
+	BOOL bTestSigningModeEnabled;
 
 	// HVCI
 	BOOL bHVCIConfigured;
