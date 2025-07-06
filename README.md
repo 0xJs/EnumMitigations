@@ -1,7 +1,7 @@
 # EnumMitigations
-Reports on Driver, LSASS and other security services mitigations. I got inspired to build upon the EnumMitigations tool provided in the Evasion Lab (CETP) from [Altered Security](https://www.alteredsecurity.com/evasionlab), taught by [Saad Ahla](https://www.linkedin.com/in/saad-ahla/).
+Tool written in `C` which reports on Driver, LSASS and other security services mitigations. I got inspired to expand upon the tool provided in the Evasion Lab (CETP) which enumerated DSE from [Altered Security](https://www.alteredsecurity.com/evasionlab), taught by [Saad Ahla](https://www.linkedin.com/in/saad-ahla/). Now including even more security settings related to drivers and lsass.
 
-### Checks
+## What settings does it check
 - Driver Security Mitigations
   - Secure boot
   - Test Signing mode
@@ -17,56 +17,102 @@ Reports on Driver, LSASS and other security services mitigations. I got inspired
   -  MM Firmware Measurement
   -  Kernel-mode Hardware-enforced Stack Protection
   -  Hypervisor-Enforced Paging Translation
+ 
+## How to run it
+- Compile it using Visual Studio
+- Run in elevated context so that the tool can enumerate the current protection level of `lsass.exe`. The tool works without it but it won't be able to retrieve the protection level.
 
-### Output
+```
+.\EnumMitigations.exe
+```
+
+## Information / Notes about these protections
+
+### Kernel Driver protections
+- **Windows Hardware Quality Labs (WHQL)**
+	- Since 2016, all third-party kernel-mode drivers must be submitted through WHQL to be signed by Microsoft. 
+	- This process ensures drivers are validated for security and stability before being allowed on Windows.
+	- WHQL signing is mandatory for drivers to be distributed through Windows Update and Microsoft Update Catalog.
+	- Exception: Drivers signed before July 29, 2015 can still be loaded without re-submission, though Microsoft may block known-vulnerable ones.
+	- Tools like HookSignTool have been used to re-sign drivers by hijacking legacy signatures, but this is considered a legacy bypass and may no longer be viable on modern systems (especially with HVCI or VBS enabled).
+ - **Driver Signature Enforcement (DSE)**
+	- A mandatory security feature since Windows Vista x64, ensuring that only signed kernel-mode drivers are loaded.
+    - Enforced via the Code Integrity engine (`CI.dll`), which includes a global variable `g_CiOptions`:
+	    - `0x6` – DSE Enabled (default)
+	    - `0x0` – DSE Disabled
+	    - `0xE` – Test Signing Mode (allows test-signed drivers)
+	- Disabling DSE directly (via patching `g_CiOptions`) is protected by:
+	    - PatchGuard (aka Kernel Patch Protection)
+	    - HyperGuard (on supported hardware)
+	    - Virtualization-Based Security (VBS) in modern Windows
+	- Attempts to modify kernel memory (like `g_CiOptions`) from within drivers are blocked, making direct tampering extremely difficult or unstable.
+- **Virtualization-Based Security (VBS)**
+	- A platform-level security feature that uses hardware virtualization (e.g., Intel VT-x or AMD-V) to create isolated memory regions for sensitive OS components.
+	- Enables features such as:
+	    - Credential Guard (protects secrets like NTLM hashes and Kerberos tickets)
+	    - Hypervisor-Enforced Code Integrity (HVCI)
+	    - Secure Kernel Mode execution
+	- When enabled, VBS isolates critical components from the rest of the OS, making kernel exploits significantly harder.
+	- Many driver enforcement policies become significantly stricter when VBS is enabled.
+	- Required for several enterprise-level protections and enabled by default on many newer Windows 11 systems.
+	- Disabling VBS disables dependent features like HVCI and reduces overall kernel protection.
+- **Hypervisor-Enforced Code Integrity (HVCI)**
+	- Component of VBS that uses Hyper-V to isolate and protect kernel code integrity policies.
+	- Prevents unsigned or improperly signed kernel-mode drivers from being loaded.
+	- Requires drivers to be:
+	    - Signed with EV certificates (WHQL program)
+	    - HVCI-compatible (e.g., no legacy functions or unsupported calls)
+	- Since Windows 11 (2022 Update), Microsoft enables the vulnerable driver blocklist by default across all devices. This blocklist:
+	    - Is maintained by Microsoft and updated 1–2 times per year
+	    - Blocks known vulnerable, signed drivers even if they are otherwise valid.
+-  **Windows Defender Application Control (WDAC)**
+	- A Windows security feature that defines what code is allowed to run, including **drivers**.
+	- Can block both:
+	    - Unsigned drivers
+	    - Signed but vulnerable drivers (by using the Microsoft Recommended Driver Blocklist)
+	- Enforced via:
+	    - WDAC policies (enterprise-configurable)
+	    - Smart App Control (consumer-focused, Windows 11)
+	- WDAC may be stricter than HVCI because it allows organizations to enforce the most up-to-date blocklists, which may be newer than those bundled with HVCI.
+- **Secure Boot**
+	- A UEFI firmware-level security feature that ensures only trusted bootloaders and kernel-mode drivers are executed at startup.
+	- Uses public key infrastructure (PKI) to validate the signatures of boot components (including early boot drivers).
+	- Blocks boot-start unsigned or tampered drivers even before Windows fully loads.
+	- Must be enabled in UEFI settings, and relies on OEM firmware trust chains (e.g., Microsoft’s keys)
+
+### LSA Protection
+- Adds Protection level to a process and resides in the kernel in the `Protection` field as 1 byte value in the `EPROCESS` structure. Blocks untrusted tools (e.g. Mimikatz) from reading LSASS memory.
+- Configuration
+	- Automatically enabled on Win11 22H2 [link](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection#automatic-enablement)
+	- Can be enabled by configured the registry key `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa` to 
+		- `1` - This value enables `0x41` `PS_PROTECTED_LSA_LIGHT` - with a UEFI variable,
+		- `2` - This value enables `0x41` PS_PROTECTED_LSA_LIGHT - without a UEFI variable and only enforced on Windows 11 build 22H2 and later
+- The following protection levels exist
+
+| Protection Level                | Value | Signer           | Type                |
+| ------------------------------- | ----- | ---------------- | ------------------- |
+| PS_PROTECTED_SYSTEM             | 0x72  | WinSystem (7)    | Protected (2)       |
+| PS_PROTECTED_WINTCB             | 0x62  | WinTcb (6)       | Protected (2)       |
+| PS_PROTECTED_WINDOWS            | 0x52  | Windows (5)      | Protected (2)       |
+| PS_PROTECTED_AUTHENTICODE       | 0x12  | Authenticode (1) | Protected (2)       |
+| PS_PROTECTED_WINTCB_LIGHT       | 0x61  | WinTcb (6)       | Protected Light (1) |
+| PS_PROTECTED_WINDOWS_LIGHT      | 0x51  | Windows (5)      | Protected Light (1) |
+| PS_PROTECTED_LSA_LIGHT          | 0x41  | Lsa (4)          | Protected Light (1) |
+| PS_PROTECTED_ANTIMALWARE_LIGHT  | 0x31  | Antimalware (3)  | Protected Light (1) |
+| PS_PROTECTED_AUTHENTICODE_LIGHT | 0x11  | Authenticode (1) | Protected Light (1) |
+
+### Credential Guard
+- Isolates LSASS secrets using Virtualization-Based Security (VBS). Secrets such as NTLM-hashes and TGT's are now stored in `lsasio.exe`.
+- Enabled by default in Windows 11 22H2+ and Windows Server 2025
+- Requires UEFI, Secure Boot, and VBS (Virtualization-Based Security) to be active.
+- On enterprise-joined or AAD-joined Windows 11 22H2+ systems, Credential Guard is **enabled by default** unless explicitly disabled.
+
+## Example output
 In my VM with nothing enabled:
 
 ```
 .\EnumMitigations.exe
-[i] CheckSecureBoot - Checking Secure boot
-        RegOpenKeyExW - Returned handle to the key 0x000000000000005C
-        RegQueryValueExW - Received 4 bytes, UEFISecureBootEnabled = 0x0
-[+] CheckSecureBoot - Secure boot information retrieved
-[i] CheckTestSigningModeAndDSE - Checking Signing mode
-        LoadLibraryA - Received handle to ntdll.dll 0x00007FFC39360000
-        GetProcAddress - Received address to NtQuerySystemInformation 0x00007FFC394C2480
-        NtQuerySystemInformation - Received 8 bytes of SYSTEM_CODEINTEGRITY_INFORMATION
-        NtQuerySystemInformation - SCI CodeIntegrityOptions: 0x280203
-[+] CheckTestSigningModeAndDSE - Signing mode status retrieved
-[i] CheckSecuritySettingsWMI - Checking security configurations via WMI
-        CoInitializeSecurity - OK Set COM security levels
-        CoCreateInstance - OK created IWbemLocator object 0x0000017CDABD9500
-        ConnectServer - OK connected to Device Guard WMI namespace
-        CoSetProxyBlanket - OK set proxy blanket
-        ExecQuery - OK query executed
-[+] CheckSecuritySettingsWMI - Security configurations via WMI retrieved
-[i] CheckRunasPPLRegKey - Checking CheckRunasPPL RegKey regkey
-        RegOpenKeyExW - Returned handle to the key 0x0000000000000250
-        RegQueryValueExW - Received 4 bytes, RunAsPPL = 0x2
-[+] CheckRunasPPLRegKey - RunasPPL RegKey retrieved
-[i] IsProcessHighIntegrity - Checking if current process is running in High Integrity
-        OpenProcessToken - Retrieved handle to token 0x0000000000000250
-        GetTokenInformation1 - Retrieved 28 bytes of token information
-        malloc - Allocated 28 bytes of memory at 0x0000017CDAC22210
-        GetTokenInformation2 - Retrieved 28 bytes of token information at 0x0000017CDAC22210
-        GetSidSubAuthority - Integrity Level: 0x3000
-[+] IsProcessHighIntegrity - Process running in High Integrity
-[i] EnableDebugPrivilege - Enabling SeDebugPrivilege
-        OpenProcessToken - Retrieved handle to token 0x0000000000000250
-        LookupPrivilegeValueW - OK
-        AdjustTokenPrivileges - Privileges changed
-[+] EnableDebugPrivilege - Enabled SeDebugPrivilege
-[i] GetProtectionLevel - Attempting to get protection level of "lsass.exe"
-        LoadLibraryA - Received handle to ntdll.dll 0x00007FFC39360000
-        GetProcAddress - Received address to NtQuerySystemInformation 0x00007FFC394C2480
-        GetProcAddress - Received address to NtQueryInformationProcess 0x00007FFC394C20E0
-        NtQuerySystemInformation - Retrieved size in bytes for the system information: 260192
-        HeapAlloc - Allocated 260192 bytes of memory at 0x0000017CDAC26F90
-        NtQuerySystemInformation - Retrieved size in bytes of system information: 260192 at 0x0000017CDAC26F90
-        wcscmp - Proccess lsass.exe found with PID: 1044
-        OpenProcess - Opened handle 0x0000000000000250
-        NtQueryInformationProcess - lsass.exe ProtectionLevel = 65
-[+] GetProtectionLevel - Protection level from "lsass.exe" retrieved
+...snip...
 
 [i] ReportSecurityMitigationsDriver - Driver Security Mitigations
         [VULN] UEFI Secure Boot: Disabled
@@ -97,50 +143,7 @@ In my VM with nothing enabled:
 Other example:
 ```
 .\EnumMitigations.exe
-[i] CheckSecureBoot - Checking Secure boot
-        RegOpenKeyExW - Returned handle to the key 0x0000000000000158
-        RegQueryValueExW - Received 4 bytes, UEFISecureBootEnabled = 0x1
-[+] CheckSecureBoot - Secure boot information retrieved
-[i] CheckTestSigningModeAndDSE - Checking Signing mode
-        LoadLibraryA - Received handle to ntdll.dll 0x00007FFFE6780000
-        GetProcAddress - Received address to NtQuerySystemInformation 0x00007FFFE68E2480
-        NtQuerySystemInformation - Received 8 bytes of SYSTEM_CODEINTEGRITY_INFORMATION
-        NtQuerySystemInformation - SCI CodeIntegrityOptions: 0xF401
-[+] CheckTestSigningModeAndDSE - Signing mode status retrieved
-[i] CheckSecuritySettingsWMI - Checking security configurations via WMI
-        CoInitializeSecurity - OK Set COM security levels
-        CoCreateInstance - OK created IWbemLocator object 0x000001AA1821EA20
-        ConnectServer - OK connected to Device Guard WMI namespace
-        CoSetProxyBlanket - OK set proxy blanket
-        ExecQuery - OK query executed
-[+] CheckSecuritySettingsWMI - Security configurations via WMI retrieved
-[i] CheckRunasPPLRegKey - Checking CheckRunasPPL RegKey regkey
-        RegOpenKeyExW - Returned handle to the key 0x000000000000024C
-        RegQueryValueExW - Received 4 bytes, RunAsPPL = 0x2
-[+] CheckRunasPPLRegKey - RunasPPL RegKey retrieved
-[i] IsProcessHighIntegrity - Checking if current process is running in High Integrity
-        OpenProcessToken - Retrieved handle to token 0x000000000000024C
-        GetTokenInformation1 - Retrieved 28 bytes of token information
-        malloc - Allocated 28 bytes of memory at 0x000001AA18257950
-        GetTokenInformation2 - Retrieved 28 bytes of token information at 0x000001AA18257950
-        GetSidSubAuthority - Integrity Level: 0x3000
-[+] IsProcessHighIntegrity - Process running in High Integrity
-[i] EnableDebugPrivilege - Enabling SeDebugPrivilege
-        OpenProcessToken - Retrieved handle to token 0x000000000000024C
-        LookupPrivilegeValueW - OK
-        AdjustTokenPrivileges - Privileges changed
-[+] EnableDebugPrivilege - Enabled SeDebugPrivilege
-[i] GetProtectionLevel - Attempting to get protection level of "lsass.exe"
-        LoadLibraryA - Received handle to ntdll.dll 0x00007FFFE6780000
-        GetProcAddress - Received address to NtQuerySystemInformation 0x00007FFFE68E2480
-        GetProcAddress - Received address to NtQueryInformationProcess 0x00007FFFE68E20E0
-        NtQuerySystemInformation - Retrieved size in bytes for the system information: 735152
-        HeapAlloc - Allocated 735152 bytes of memory at 0x000001AA19CB0080
-        NtQuerySystemInformation - Retrieved size in bytes of system information: 735152 at 0x000001AA19CB0080
-        wcscmp - Proccess lsass.exe found with PID: 1588
-        OpenProcess - Opened handle 0x00000000000001D8
-        NtQueryInformationProcess - lsass.exe ProtectionLevel = 65
-[+] GetProtectionLevel - Protection level from "lsass.exe" retrieved
+...snip...
 
 [i] ReportSecurityMitigationsDriver - Driver Security Mitigations
         [OK] UEFI Secure Boot: Enabled
