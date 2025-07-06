@@ -118,6 +118,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,10 +129,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
+    <ClInclude Include="config.h" />
+    <ClInclude Include="structs.h" />
+    <ClInclude Include="typedef.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EnumMitigations.c" />
+    <ClCompile Include="checkprivileges.c" />
+    <ClCompile Include="enummitigiations.c" />
+    <ClCompile Include="main.c" />
     <ClCompile Include="helpers.c" />
+    <ClCompile Include="protectionlevel.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

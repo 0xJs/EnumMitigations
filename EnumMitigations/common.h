@@ -1,83 +1,19 @@
+/*
+     Stores all macro's and function prototypes used across the project
+*/
+
 #pragma once
 
-#include <Windows.h>
-#include <stdio.h>
-#include <Wbemidl.h>
+#include "windows.h"
+#include "stdio.h"
 
-#pragma comment(lib, "wbemuuid.lib")
+#include "structs.h"
+#include "typedef.h"
 
-// ***** STRUCTS ***** //
-typedef struct _SYSTEM_CODEINTEGRITY_INFORMATION {
-	ULONG Length;
-	ULONG CodeIntegrityOptions;
-} SYSTEM_CODEINTEGRITY_INFORMATION, * PSYSTEM_CODEINTEGRITY_INFORMATION;
+#include <Wbemidl.h> // For WMI interfaces
+#pragma comment(lib, "wbemuuid.lib") //	Links WMI interface symbols required for COM/WMI operations
 
-typedef enum _SYSTEM_INFORMATION_CLASS {
-	SystemCodeIntegrityInformation = 103
-} SYSTEM_INFORMATION_CLASS;
-
-typedef struct _SystemSecuritySettings {
-	
-	// Secure boot
-	BOOL bSecureBootEnabled;
-
-	// DSE
-	BOOL bDSEEnabled;
-
-	// Test signing mode
-	BOOL bTestSigningModeEnabled;
-
-	// HVCI
-	BOOL bHVCIConfigured;
-	BOOL bHVCIRunning;
-
-	// Credential Guard
-	BOOL bCredentialGuardConfigured;
-	BOOL bCredentialGuardRunning;
-
-	// System Guard: Secure Launch
-	BOOL bSystemGuardSecureLaunchConfigured;
-	BOOL bSystemGuardSecureLaunchRunning;
-
-	// SMM Firmware Measurement
-	BOOL bSMMFirmwareMeasurementConfigured;
-	BOOL bSMMFirmwareMeasurementRunning;
-
-	// Kernel Mode Stack Protection
-	BOOL bKernelModeStackProtectionConfigured;
-	BOOL bKernelModeStackProtectionRunning;
-
-	// Hypervisor Paging Translation
-	BOOL bHypervisorPagingTranslationConfigured;
-	BOOL bHypervisorPagingTranslationRunning;
-
-	// Virtualization-based Security
-	BOOL bVirtualizationBasedSecurityEnabled;
-	BOOL bVirtualizationBasedSecurityAuditEnabled;
-
-	// Windows Defender Application Control
-	BOOL bWDACEnabledEnforced;
-	BOOL bWDACEnabledAudit;
-
-	// LSASS protection RunAsPPL
-	BOOL bLSASSRunAsPPLEnabled;
-
-
-} SystemSecuritySettings;
-
-// ***** TYPEDEF DEFINITIONS ***** //
-
-// Function pointer to NtQuerySystemInformation
-// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntquerysysteminformation
-typedef NTSTATUS(NTAPI* fnNtQuerySystemInformation)(
-	SYSTEM_INFORMATION_CLASS SystemInformationClass,
-	PVOID SystemInformation,
-	ULONG SystemInformationLength,
-	PULONG ReturnLength
-	);
-
-// ***** HELPER FUNCTIONS ***** //
-// Macros for printing
+// ***** HELPER FUNCTIONS FOR PRINTING ***** //
 #define okay(msg, ...) printf("[+] "msg "\n", ##__VA_ARGS__);
 #define info(msg, ...) printf("[i] "msg "\n", ##__VA_ARGS__);
 #define error(msg, ...) printf("[-] "msg "\n", ##__VA_ARGS__);
@@ -86,17 +22,33 @@ typedef NTSTATUS(NTAPI* fnNtQuerySystemInformation)(
 #define infoW(msg, ...) wprintf(L"[i] " msg L"\n", ##__VA_ARGS__)
 #define errorW(msg, ...) wprintf(L"[-] " msg L"\n", ##__VA_ARGS__)
 
-// Tabbed versions for info prints without the [i]
+// NT Macro for succes of syscalls
+#define NT_SUCCESS(status)	        (((NTSTATUS)(status)) >= 0) // https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/using-ntstatus-values
+
+// Tabbed versions for info without the [i]
 #define infoW_t(msg, ...) wprintf(L"\t" msg L"\n", ##__VA_ARGS__)
 #define info_t(msg, ...) printf("\t"msg "\n", ##__VA_ARGS__);
 
-// NT Macro for succes of syscalls
-#define NT_SUCCESS(status)	        (((NTSTATUS)(status)) >= 0) // https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/using-ntstatus-values
+// ***** HELPER FUNCTION TO GET HANDLE TO CURRENT PROCESS OR THREAD ***** //
+#define NtCurrentProcess() ((HANDLE)-1) // Return the pseudo handle for the current process
+#define NtCurrentThread()  ((HANDLE)-2) // Return the pseudo handle for the current thread
 
 // ***** FUNCTION PROTOTYPES ***** //
 // Function prototypes are needed so each source file is aware of the function's signature 
 // (name, return type, and parameters) before the compiler encounters the function call.
 
 // For functions in 'helpers.c'
-int errorWin32(const char* msg);
-int errorNT(const char* msg, NTSTATUS ntstatus);
+int errorWin32(IN const char* msg);
+int errorNT(IN const char* msg, IN NTSTATUS ntstatus);
+void print_bytes(IN void* ptr, IN int size);
+
+// For functions in 'enummitigations.c'
+BOOL GatherSecuritySettings(IN SystemSecuritySettings* pSettings);
+BOOL ReportSecurityMitigations(SystemSecuritySettings* pSettings);
+
+// For functions in 'checkprivileges.c'
+BOOL IsProcessHighIntegrity();
+BOOL EnableDebugPrivilege();
+
+// For functions in 'protectionlevel.c'
+BOOL GetProtectionLevel(IN SystemSecuritySettings* pSettings, IN LPCWSTR szTargetProcName);

@@ -1,17 +1,15 @@
 #include "common.h"
-
 #include <winbase.h>
 
-
-
+// Checks if secure boot is enabled using registry (SYSTEM\\CurrentControlSet\\Control\\SecureBoot\\State\UEFISecureBootEnabled)
 BOOL CheckSecureBoot(IN SystemSecuritySettings* pSettings) {
 
-	BOOL	bSTATE				= TRUE;
-	HKEY	hKey				= NULL;							// Stores handle to the opened registry key
-	LONG	lResult				= NULL;							// Stores WINAPI success value
-	DWORD	dwSecureBootEnabled	= NULL;							// Stores WINAPI success value
-	DWORD	dwDataSize			= sizeof(dwSecureBootEnabled);	// Size of the regkey value
-	DWORD	dwValueType			= NULL;							// Type of the regkey value
+	BOOL	bSTATE = TRUE;
+	HKEY	hKey = NULL;							// Stores handle to the opened registry key
+	LONG	lResult = NULL;							// Stores WINAPI success value
+	DWORD	dwSecureBootEnabled = NULL;							// Stores WINAPI success value
+	DWORD	dwDataSize = sizeof(dwSecureBootEnabled);	// Size of the regkey value
+	DWORD	dwValueType = NULL;							// Type of the regkey value
 
 	// Open the registry key
 	// https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
@@ -66,14 +64,15 @@ _cleanUp:
 
 }
 
-BOOL CheckRunasPPL(IN SystemSecuritySettings* pSettings) {
+// Checks if runasppl is enabled for lsass using registry (SYSTEM\\CurrentControlSet\\Control\\Lsa\RunAsPPL)
+BOOL CheckRunasPPLRegKey(IN SystemSecuritySettings* pSettings) {
 
-	BOOL	bSTATE			= TRUE;
-	HKEY	hKey			= NULL;					// Stores handle to the opened registry key
-	LONG	lResult			= NULL;					// Stores WINAPI success value
-	DWORD	dwRunAsPPL		= NULL;					// Stores the regkey value
-	DWORD	dwDataSize		= sizeof(dwRunAsPPL);	// Size of the regkey value
-	DWORD	dwValueType		= NULL;					// Type of the regkey value
+	BOOL	bSTATE = TRUE;
+	HKEY	hKey = NULL;					// Stores handle to the opened registry key
+	LONG	lResult = NULL;					// Stores WINAPI success value
+	DWORD	dwRunAsPPL = NULL;					// Stores the regkey value
+	DWORD	dwDataSize = sizeof(dwRunAsPPL);	// Size of the regkey value
+	DWORD	dwValueType = NULL;					// Type of the regkey value
 
 	// Open the registry key
 	// https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regopenkeyexw
@@ -113,6 +112,9 @@ BOOL CheckRunasPPL(IN SystemSecuritySettings* pSettings) {
 		pSettings->bLSASSRunAsPPLEnabled = TRUE;
 	}
 
+	// Store the LSASS runasppl value
+	pSettings->dwLSASSRunAsPPLValue = dwRunAsPPL;
+
 _cleanUp:
 
 	// Cleanup close handle
@@ -125,12 +127,13 @@ _cleanUp:
 
 }
 
+// Checks if DSE and TestSigningMode is enabled or disabled
 BOOL CheckTestSigningModeAndDSE(IN SystemSecuritySettings* pSettings) {
-	
-	BOOL		bSTATE		= TRUE;
-	HMODULE		hNTDLL		= NULL; // Stores handle to ntdll.dll
-	NTSTATUS	STATUS		= NULL; // Stores the NTSTATUS
-	ULONG		uReturn		= NULL; // Size returned in bytes from NtQuerySystemInformation
+
+	BOOL		bSTATE = TRUE;
+	HMODULE		hNTDLL = NULL; // Stores handle to ntdll.dll
+	NTSTATUS	STATUS = NULL; // Stores the NTSTATUS
+	ULONG		uReturn = NULL; // Size returned in bytes from NtQuerySystemInformation
 
 	// Get handle to ntdll.dll
 	// https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
@@ -152,7 +155,7 @@ BOOL CheckTestSigningModeAndDSE(IN SystemSecuritySettings* pSettings) {
 
 	SYSTEM_CODEINTEGRITY_INFORMATION sci = { 0 };
 	sci.Length = sizeof(sci);
-	
+
 	// Get the SystemCodeIntegrityInformation information
 	// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntquerysysteminformation
 	STATUS = NtQuerySystemInformation(
@@ -186,7 +189,7 @@ BOOL CheckTestSigningModeAndDSE(IN SystemSecuritySettings* pSettings) {
 	}
 
 _cleanUp:
-	
+
 	// Cleanup close handle
 	if (hNTDLL) {
 		FreeLibrary(hNTDLL);
@@ -195,19 +198,20 @@ _cleanUp:
 	return bSTATE;
 }
 
+// Check various security settings through WMI
 BOOL CheckSecuritySettingsWMI(IN SystemSecuritySettings* pSettings) {
 
-	BOOL					bSTATE					= TRUE; // Stores the status of function
-	HRESULT					hres					= NULL; // Stores handle to result
-	IWbemLocator*			pLoc					= NULL; 
-	IWbemServices*			pSvc					= NULL; 
-	IEnumWbemClassObject*	pEnumerator				= NULL;
-	IWbemClassObject*		pclsObj					= NULL;
-	ULONG					uReturn					= 0;
-	IWbemServices*			pSecureBootSvc			= NULL;
-	BSTR					namespacePath			= NULL;
-	BSTR					querylanguagestring		= NULL;
-	BSTR					querystring				= NULL;
+	BOOL					bSTATE = TRUE; // Stores the status of function
+	HRESULT					hres = NULL; // Result status for COM and WMI operations
+	IWbemLocator* pLoc = NULL; // Pointer to IWbemLocator interface used to connect to WMI
+	IWbemServices* pSvc = NULL; // Pointer to IWbemServices interface for executing WMI queries
+	IEnumWbemClassObject* pEnumerator = NULL; // Pointer to enumerator for WMI query results
+	IWbemClassObject* pclsObj = NULL; // Pointer to current WMI class object in enumeration
+	ULONG					uReturn = 0;	// Stores number of WMI objects returned in enumeration
+	IWbemServices* pSecureBootSvc = NULL; // [Unused] Intended pointer to SecureBoot WMI service interface
+	BSTR					namespacePath = NULL; // WMI namespace path string
+	BSTR					querylanguagestring = NULL; // WQL language identifier string
+	BSTR					querystring = NULL; // WQL query string
 
 	// Initializes the COM library for use by the calling thread
 	// https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-coinitializeex
@@ -330,14 +334,14 @@ BOOL CheckSecuritySettingsWMI(IN SystemSecuritySettings* pSettings) {
 			&pclsObj,        // Pointer to where the retrieved object will be stored.
 			&uReturn         // Store number of retrieved objects
 		);
-		
+
 		// If uReturn is 0 then no more objects so break
 		if (uReturn == 0) {
 			break;
 		}
 
 		// Save properties of the WMI object
-		VARIANT vtProp; 
+		VARIANT vtProp;
 
 		/// *** SECURITY SERVICES CONFIGURED & RUNNING *** //
 		// https://learn.microsoft.com/en-us/windows/security/hardware-security/enable-virtualization-based-protection-of-code-integrity?tabs=security#use-win32_deviceguard-wmi-class
@@ -437,21 +441,21 @@ BOOL CheckSecuritySettingsWMI(IN SystemSecuritySettings* pSettings) {
 						pSettings->bHVCIRunning = TRUE;
 					}
 					else // Check for System Guard Secure Launch (value 3)
-					if (lValue == 3) {
-						pSettings->bSystemGuardSecureLaunchRunning = TRUE;
-					}
+						if (lValue == 3) {
+							pSettings->bSystemGuardSecureLaunchRunning = TRUE;
+						}
 					// Check for SMM Firmware Measurement (value 4)
-					else if (lValue == 4) {
-						pSettings->bSMMFirmwareMeasurementRunning = TRUE;
-					}
+						else if (lValue == 4) {
+							pSettings->bSMMFirmwareMeasurementRunning = TRUE;
+						}
 					// Check for Kernel-mode Stack Protection (value 5)
-					else if (lValue == 5) {
-						pSettings->bKernelModeStackProtectionRunning = TRUE;
-					}
+						else if (lValue == 5) {
+							pSettings->bKernelModeStackProtectionRunning = TRUE;
+						}
 					// Check for Hypervisor Paging Translation (value 7)
-					else if (lValue == 7) {
-						pSettings->bHypervisorPagingTranslationRunning = TRUE;
-					}
+						else if (lValue == 7) {
+							pSettings->bHypervisorPagingTranslationRunning = TRUE;
+						}
 				}
 			}
 		}
@@ -511,7 +515,8 @@ BOOL CheckSecuritySettingsWMI(IN SystemSecuritySettings* pSettings) {
 		// Check if the property is an integer and if WDAC is enabled and enforced (value == 2)
 		if (vtProp.vt == VT_I4) {
 			if (vtProp.intVal == 2) {
-				pSettings->bWDACEnabledEnforced = TRUE;			}
+				pSettings->bWDACEnabledEnforced = TRUE;
+			}
 			else if (vtProp.intVal == 1) {
 				pSettings->bWDACEnabledAudit = TRUE;
 			}
@@ -534,7 +539,7 @@ _cleanUp:
 	if (querystring) {
 		SysFreeString(querystring);
 	}
-	
+
 	if (querylanguagestring) {
 		SysFreeString(querylanguagestring);
 	}
@@ -546,7 +551,7 @@ _cleanUp:
 	if (pLoc) {
 		pLoc->lpVtbl->Release(pLoc);
 	}
-	if (pEnumerator){
+	if (pEnumerator) {
 		pEnumerator->lpVtbl->Release(pEnumerator);
 	}
 	CoUninitialize();
@@ -555,32 +560,63 @@ _cleanUp:
 
 }
 
+// Function which calls all the other functions
 BOOL GatherSecuritySettings(IN SystemSecuritySettings* pSettings) {
 
 	info("CheckSecureBoot - Checking Secure boot");
 	if (!CheckSecureBoot(pSettings)) {
 		error("CheckSecureBoot - Failed")
 	}
+	okay("CheckSecureBoot - Secure boot information retrieved");
 
 	info("CheckTestSigningModeAndDSE - Checking Signing mode");
 	if (!CheckTestSigningModeAndDSE(pSettings)) {
 		error("CheckTestSigningModeAndDSE - Failed")
 	}
+	okay("CheckTestSigningModeAndDSE - Signing mode status retrieved");
 
 	info("CheckSecuritySettingsWMI - Checking security configurations via WMI");
 	if (!CheckSecuritySettingsWMI(pSettings)) {
 		error("CheckSecuritySettingsWMI - Failed");
 	}
+	okay("CheckSecuritySettingsWMI - Security configurations via WMI retrieved");
 
-	info("CheckRunasPPL - Checking CheckRunasPPL regkey");
-	if (!CheckRunasPPL(pSettings)) {
-		error("CheckRunasPPL - Failed");
+	info("CheckRunasPPLRegKey - Checking CheckRunasPPL RegKey regkey");
+	if (!CheckRunasPPLRegKey(pSettings)) {
+		error("CheckRunasPPLRegKey - Failed");
+	}
+	okay("CheckRunasPPLRegKey - RunasPPL RegKey retrieved");
+
+	// Check if the process is running with elevated privileges
+	info("IsProcessHighIntegrity - Checking if current process is running in High Integrity");
+	if (IsProcessHighIntegrity()) {
+		okay("IsProcessHighIntegrity - Process running in High Integrity");
+
+		// Enable SeDebugPrivilege to access protected processes
+		info("EnableDebugPrivilege - Enabling SeDebugPrivilege");
+		if (!EnableDebugPrivilege()) {
+			error("EnableDebugPrivilege - Failed to enable SeDebugPrivilege");
+		}
+		else {
+			okay("EnableDebugPrivilege - Enabled SeDebugPrivilege");
+
+			// Get protection level of lsass.exe
+			info("GetProtectionLevel - Attempting to get protection level of \"lsass.exe\"");
+			if (!GetProtectionLevel(pSettings, L"lsass.exe")) {
+				error("GetProtectionLevel - Failed");
+			}
+			okay("GetProtectionLevel - Protection level from \"lsass.exe\" retrieved");
+		}
+	}
+	else {
+		error("IsProcessHighIntegrity - Not running elevated, cannot retrieve lsass.exe protection level");
 	}
 
 	return TRUE;
 
 }
 
+// Function to print status of all the driver related security settings 
 BOOL ReportSecurityMitigationsDriver(SystemSecuritySettings* pSettings) {
 
 	if (pSettings->bSecureBootEnabled) {
@@ -642,6 +678,7 @@ BOOL ReportSecurityMitigationsDriver(SystemSecuritySettings* pSettings) {
 
 }
 
+// Function to print status of all the lsass related security settings 
 BOOL ReportSecurityMitigationsLSASS(SystemSecuritySettings* pSettings) {
 
 	if (pSettings->bCredentialGuardConfigured) {
@@ -659,16 +696,42 @@ BOOL ReportSecurityMitigationsLSASS(SystemSecuritySettings* pSettings) {
 	}
 
 	if (pSettings->bLSASSRunAsPPLEnabled) {
-		info_t("[OK] LSASS RunAsPPL: Configured");
+		if (pSettings->dwLSASSRunAsPPLValue == 1) {
+			info_t("[OK] LSASS RunAsPPL: Configured (Value: 1 - UEFI enforced)");
+		}
+		else if (pSettings->dwLSASSRunAsPPLValue == 2) {
+			info_t("[OK] LSASS RunAsPPL: Configured (Value: 2 - without UEFI , Windows 11 22H2+)");
+		}
+		else {
+			info_t("[OK] LSASS RunAsPPL: Configured (Value: %lu - Unknown or undocumented)", pSettings->dwLSASSRunAsPPLValue);
+		}
 	}
 	else {
 		info_t("[VULN] LSASS RunAsPPL: Not Configured");
+	}
+
+	if (pSettings->bLSASSProtectionLevelRetrieved == TRUE) {
+		if (pSettings->ulLSASSProtectionLevel != 0) {
+			if (pSettings->ulLSASSProtectionLevel == 0x41) {
+				info_t("[OK] LSASS protected - Protection Level: 0x%lX - Standard protected LSASS", pSettings->ulLSASSProtectionLevel, pSettings->ulLSASSProtectionLevel);
+			}
+			else {
+				info_t("[OK] LSASS protected - Protection Level: 0x%lX - Unknown", pSettings->ulLSASSProtectionLevel, pSettings->ulLSASSProtectionLevel);
+			}
+		}
+		else {
+			info_t("[VULN] LSASS not protected - Protection Level: %lu (0x%lX)", pSettings->ulLSASSProtectionLevel, pSettings->ulLSASSProtectionLevel);
+		}
+	}
+	else {
+		info_t("[ ] Not running in elevated context, cannot retrieve lsass.exe protection level");
 	}
 
 	return TRUE;
 
 }
 
+// Function to print status of all the misc related security settings 
 BOOL ReportSecurityMitigationsMisc(SystemSecuritySettings* pSettings) {
 
 	if (pSettings->bSystemGuardSecureLaunchConfigured) {
@@ -731,6 +794,7 @@ BOOL ReportSecurityMitigationsMisc(SystemSecuritySettings* pSettings) {
 
 }
 
+// Function which calls all the Reporting functions
 BOOL ReportSecurityMitigations(SystemSecuritySettings* pSettings) {
 
 	printf("\n");
@@ -748,20 +812,4 @@ BOOL ReportSecurityMitigations(SystemSecuritySettings* pSettings) {
 
 	return TRUE;
 
-}
-
-int main() {
-	
-	SystemSecuritySettings settings;
-
-	// Initialize struct to zero
-	ZeroMemory(&settings, sizeof(SystemSecuritySettings));
-
-	// Collect system security status
-	GatherSecuritySettings(&settings);
-
-	// Report results
-	ReportSecurityMitigations(&settings);
-
-	return EXIT_SUCCESS;
 }

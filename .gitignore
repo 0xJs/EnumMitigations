@@ -22,7 +22,7 @@
 *.la
 *.lo
 
-# Shared objects (inc. Windows DLLs)
+# Shared objects (including Windows DLLs)
 *.dll
 *.so
 *.so.*
@@ -36,12 +36,29 @@
 *.x86_64
 *.hex
 
-<<<<<<< HEAD
-#VS
-*.vs/
+# Debug and release output
+*.log
+*.tlog
+*.lastbuildstate
+*.ipdb
+*.iobj
+*.recipe
 
-=======
->>>>>>> e5f307950f6ef752e5387c0d9f0ea77ca8316637
+# Visual Studio folders and files
+*.vs/
+*.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Intermediate folders
+Debug/
+Release/
+x64/
+*.VC.db
+*.VC.opendb
+
 # Debug files
 *.dSYM/
 *.su
