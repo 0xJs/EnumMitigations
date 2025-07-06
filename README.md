@@ -11,7 +11,7 @@ Reports on Driver, LSASS and other security services mitigations. I got inspired
 - LSASS mitigations
   -  CredentialGuard
   -  RunASPPL
--  Misc
+- Misc
   -  System Guard Secure Launch
   -  MM Firmware Measurement
   -  Kernel-mode Hardware-enforced Stack Protection
