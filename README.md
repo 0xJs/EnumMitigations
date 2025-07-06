@@ -12,10 +12,10 @@ Reports on Driver, LSASS and other security services mitigations. I got inspired
   -  CredentialGuard
   -  RunASPPL
 -  Misc
-  - System Guard Secure Launch
-  - SMM Firmware Measurement
-  - Kernel-mode Hardware-enforced Stack Protection
-  - Hypervisor-Enforced Paging Translation
+  -  System Guard Secure Launch
+  -  MM Firmware Measurement
+  -  Kernel-mode Hardware-enforced Stack Protection
+  -  Hypervisor-Enforced Paging Translation
 
 ### Output
 In my VM with nothing enabled:
