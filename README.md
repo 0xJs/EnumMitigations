@@ -142,7 +142,6 @@ Other example:
         NtQueryInformationProcess - lsass.exe ProtectionLevel = 65
 [+] GetProtectionLevel - Protection level from "lsass.exe" retrieved
 
-
 [i] ReportSecurityMitigationsDriver - Driver Security Mitigations
         [OK] UEFI Secure Boot: Enabled
         [OK] Driver Signature Enforcement (DSE): Enabled
