@@ -8,10 +8,10 @@ Tool written in `C` which reports on Driver, LSASS and other security services m
   - Hypervisor-protected Code Integrity
   - Virtualization-based Security
   - Windows Defender Application Control
-- LSASS mitigations
+- LSASS protections
   -  CredentialGuard
   -  RunASPPL
-  -  When running in elevated context it retrieves the running protection level of `lsass.exe`
+  -  When run with Administrator privileges, it retrieves and reports LSASS’s actual process protection level (e.g., 0x41 or 0x00)
 - Misc
   -  System Guard Secure Launch
   -  MM Firmware Measurement
