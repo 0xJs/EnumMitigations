@@ -23,7 +23,7 @@ Tool written in `C` which reports on Driver, LSASS and other security services m
 - Run in elevated context so that the tool can enumerate the current protection level of `lsass.exe`. The tool works without it but it won't be able to retrieve the protection level.
 
 ```
-.\EnumMitigations.exe
+PS C:\ >  .\EnumMitigations.exe
 ```
 
 ## Information / Notes about these protections
