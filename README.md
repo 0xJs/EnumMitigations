@@ -57,7 +57,7 @@ Tool written in `C` which reports on Driver, LSASS and other security services m
 	- Required for several enterprise-level protections and enabled by default on many newer Windows 11 systems.
 	- Disabling VBS disables dependent features like HVCI and reduces overall kernel protection.
 - **Hypervisor-Enforced Code Integrity (HVCI)**
-	- Component of VBS that uses Hyper-V to isolate and protect kernel code integrity policies.
+	- Component of VBS that uses Hyper-V to isolate and protect kernel code integrity policies. Enabled by enabling memory integrity within Defender dashboard.
 	- Prevents unsigned or improperly signed kernel-mode drivers from being loaded.
 	- Requires drivers to be:
 	    - Signed with EV certificates (WHQL program)
@@ -66,7 +66,7 @@ Tool written in `C` which reports on Driver, LSASS and other security services m
 	    - Is maintained by Microsoft and updated 1–2 times per year
 	    - Blocks known vulnerable, signed drivers even if they are otherwise valid.
 -  **Windows Defender Application Control (WDAC)**
-	- A Windows security feature that defines what code is allowed to run, including **drivers**.
+	- A Windows security feature that defines what code is allowed to run, including drivers.
 	- Can block both:
 	    - Unsigned drivers
 	    - Signed but vulnerable drivers (by using the Microsoft Recommended Driver Blocklist)
