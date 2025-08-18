@@ -18,8 +18,8 @@ Tool written in `C` which reports on Driver, LSASS and other security services m
   -  Kernel-mode Hardware-enforced Stack Protection
   -  Hypervisor-Enforced Paging Translation
  
-## How to run it
-- Compile it using Visual Studio
+## Usage
+- Compile it using Visual Studio 2022
 - Run in elevated context so that the tool can enumerate the current protection level of `lsass.exe`. The tool works without it but it won't be able to retrieve the protection level.
 
 ```
